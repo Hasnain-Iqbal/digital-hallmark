@@ -259,12 +259,12 @@ export default function ProductsPage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-[#4c5683] px-6 py-8 text-slate-100">
+      <div className="min-h-screen bg-slate-950 px-6 py-8 text-slate-100">
         <div className="grid gap-8 xl:grid-cols-[280px_1fr]">
           <Sidebar />
 
           <main className="space-y-8">
-            <section className="rounded-3xl border border-slate-800 bg-[#1f183ff2] p-6 shadow-card">
+            <section className="rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-card">
               <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/90">Products</p>
@@ -291,7 +291,7 @@ export default function ProductsPage() {
             </section>
 
             {/* Filters Section */}
-            <section className="rounded-3xl border border-slate-800 bg-[#1f183ff2] p-6 shadow-card">
+            <section className="rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-card">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/90">Filters</p>
@@ -366,13 +366,13 @@ export default function ProductsPage() {
             ) : null}
 
             {loading ? (
-              <div className="rounded-3xl border border-slate-800 bg-[#1f183ff2] p-10 text-center text-slate-400 shadow-card">
+              <div className="rounded-3xl border border-slate-800 bg-slate-900/95 p-10 text-center text-slate-400 shadow-card">
                 Loading products...
               </div>
             ) : (
               <section className="grid gap-6 xl:grid-cols-3 lg:grid-cols-2">
                 {currentProducts.map((product) => (
-                  <article key={product.id} className="rounded-3xl border border-slate-800 bg-[#1f183ff2] shadow-card">
+                  <article key={product.id} className="rounded-3xl border border-slate-800 bg-slate-900/95 shadow-card">
                     <ProductImage src={product.product_image} alt={product.product_name} />
                     <div className="p-6">
                       <div className="mb-4 flex items-center justify-between gap-4">
@@ -411,7 +411,7 @@ export default function ProductsPage() {
 
                 {totalPages > 1 && (
                   <div className="xl:col-span-3 lg:col-span-2">
-                    <div className="rounded-3xl border border-slate-800 bg-[#1f183ff2] p-6 shadow-card">
+                    <div className="rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-card">
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-sm text-slate-400">
                           Showing {startIndex + 1} to {Math.min(startIndex + ITEMS_PER_PAGE, filteredProducts.length)} of {filteredProducts.length} products

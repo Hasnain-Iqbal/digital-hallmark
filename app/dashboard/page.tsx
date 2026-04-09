@@ -46,12 +46,12 @@ export default function DashboardPage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-[#4c5683] px-6 py-8 text-slate-100">
+      <div className="min-h-screen bg-slate-950 px-6 py-8 text-slate-100">
         <div className="grid gap-8 xl:grid-cols-[280px_1fr]">
           <Sidebar />
 
           <main className="space-y-8">
-            <section className="rounded-3xl border border-slate-800 bg-[#1f183ff2] p-6 shadow-card">
+            <section className="rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-card">
               <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/90">Overview</p>
@@ -84,7 +84,7 @@ export default function DashboardPage() {
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-              <div className="rounded-3xl border border-slate-800 bg-[#1f183ff2] p-6 shadow-card">
+              <div className="rounded-3xl border border-slate-800 bg-slate-950 p-6 shadow-card">
                 <div className="mb-6 flex items-center justify-between">
                   <div>
                     <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/90">Sales</p>
