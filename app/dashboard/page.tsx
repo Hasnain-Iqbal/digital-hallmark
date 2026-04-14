@@ -1,48 +1,147 @@
 "use client";
 
-import { Activity, ShoppingBag, Sparkles, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { Activity, ShoppingBag, Sparkles, Users, AlertTriangle, Package } from 'lucide-react';
 import { useAuth } from '../../components/AuthProvider';
 import AuthGuard from '../../components/AuthGuard';
 import { Sidebar } from '../../components/Sidebar';
 import { StatCard } from '../../components/StatCard';
-import { RecentActivity } from '../../components/RecentActivity';
 
-const stats = [
-  {
-    title: 'Total revenue',
-    value: '$145.8K',
-    description: 'Revenue increase over last month.',
-    icon: Sparkles,
-  },
-  {
-    title: 'Active users',
-    value: '8.2K',
-    description: 'Users who signed in this week.',
-    icon: Users,
-  },
-  {
-    title: 'Orders',
-    value: '1,214',
-    description: 'Completed orders this month.',
-    icon: ShoppingBag,
-  },
-  {
-    title: 'Live sessions',
-    value: '62',
-    description: 'Realtime sessions currently active.',
-    icon: Activity,
-  },
-];
+interface Product {
+  id: string;
+  product_name: string;
+  product_price: number;
+  productCurrencySymbol: string;
+  isProductStolen?: boolean;
+  created_at?: string;
+  product_category?: string;
+  owner?: {
+    name?: string;
+  };
+}
 
-const tableRows = [
-  { id: '#8349', customer: 'Mina Patel', status: 'Delivered', amount: '$1,280' },
-  { id: '#8350', customer: 'Jonas Carter', status: 'Processing', amount: '$560' },
-  { id: '#8351', customer: 'Eve Williams', status: 'Pending', amount: '$320' },
-  { id: '#8352', customer: 'Nina Gray', status: 'Delivered', amount: '$2,100' },
-];
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  created_at?: string;
+}
 
 export default function DashboardPage() {
   const { logout } = useAuth();
+  const [stats, setStats] = useState([
+    {
+      title: 'Total products',
+      value: '0',
+      description: 'Products in inventory.',
+      icon: Package,
+    },
+    {
+      title: 'Total users',
+      value: '0',
+      description: 'Registered users.',
+      icon: Users,
+    },
+    {
+      title: 'Stolen products',
+      value: '0',
+      description: 'Products marked as stolen.',
+      icon: AlertTriangle,
+    },
+    {
+      title: 'Total value',
+      value: '$0',
+      description: 'Combined product value.',
+      icon: Sparkles,
+    },
+  ]);
+  const [recentProducts, setRecentProducts] = useState<Product[]>([]);
+  const [recentUsers, setRecentUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        // Fetch products data
+        const productsCollection = collection(db, 'digilusData');
+        const productsSnapshot = await getDocs(productsCollection);
+        const products = productsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Product[];
+
+        // Fetch users data
+        const usersCollection = collection(db, 'digiluxUsers');
+        const usersSnapshot = await getDocs(usersCollection);
+        const users = usersSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as User[];
+
+        // Calculate statistics
+        const totalProducts = products.length;
+        const totalUsers = users.length;
+        const stolenProducts = products.filter(product => product.isProductStolen === true).length;
+        const totalValue = products.reduce((sum, product) => sum + (product.product_price || 0), 0);
+
+        // Get recent products (last 5, sorted by created_at if available)
+        const sortedProducts = products.sort((a, b) => {
+          const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return bTime - aTime;
+        });
+        const recentProductsData = sortedProducts.slice(0, 5);
+
+        // Get recent users (last 5, sorted by created_at if available)
+        const sortedUsers = users.sort((a, b) => {
+          const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return bTime - aTime;
+        });
+        const recentUsersData = sortedUsers.slice(0, 5);
+
+        // Update state
+        setStats([
+          {
+            title: 'Total products',
+            value: totalProducts.toString(),
+            description: 'Products in inventory.',
+            icon: Package,
+          },
+          {
+            title: 'Total users',
+            value: totalUsers.toString(),
+            description: 'Registered users.',
+            icon: Users,
+          },
+          {
+            title: 'Stolen products',
+            value: stolenProducts.toString(),
+            description: 'Products marked as stolen.',
+            icon: AlertTriangle,
+          },
+          {
+            title: 'Total value',
+            value: `$${totalValue.toLocaleString()}`,
+            description: 'Combined product value.',
+            icon: Sparkles,
+          },
+        ]);
+
+        setRecentProducts(recentProductsData);
+        setRecentUsers(recentUsersData);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        // Keep default stats on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   return (
     <AuthGuard>
@@ -56,9 +155,9 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/90">Overview</p>
                   <h1 className="mt-3 text-3xl font-semibold text-white">Dashboard overview</h1>
-                  <p className="mt-3 max-w-2xl leading-7 text-slate-400">
+                  {/* <p className="mt-3 max-w-2xl leading-7 text-slate-400">
                     Monitor key metrics, review recent activity, and get insights about the performance of your admin portal.
-                  </p>
+                  </p> */}
                 </div>
                 <div className="flex flex-wrap gap-3">
                   {/* <button className="rounded-full bg-slate-900 px-5 py-3 text-sm text-slate-200 transition hover:bg-slate-800">
@@ -78,47 +177,101 @@ export default function DashboardPage() {
             </section>
 
             <section className="grid gap-6 xl:grid-cols-4">
-              {stats.map((stat) => (
-                <StatCard key={stat.title} icon={stat.icon} title={stat.title} value={stat.value} description={stat.description} />
-              ))}
+              {loading ? (
+                // Loading skeleton
+                Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="rounded-3xl border border-slate-800 bg-slate-950 p-6 shadow-card">
+                    <div className="flex items-center justify-between">
+                      <div className="h-4 w-20 animate-pulse rounded bg-slate-800"></div>
+                      <div className="h-8 w-8 animate-pulse rounded-full bg-slate-800"></div>
+                    </div>
+                    <div className="mt-4 h-8 w-16 animate-pulse rounded bg-slate-800"></div>
+                    <div className="mt-2 h-4 w-32 animate-pulse rounded bg-slate-800"></div>
+                  </div>
+                ))
+              ) : (
+                stats.map((stat) => (
+                  <StatCard key={stat.title} icon={stat.icon} title={stat.title} value={stat.value} description={stat.description} />
+                ))
+              )}
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
+              {/* Recent Products */}
               <div className="rounded-3xl border border-slate-800 bg-slate-950 p-6 shadow-card">
                 <div className="mb-6 flex items-center justify-between">
                   <div>
-                    <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/90">Sales</p>
-                    <h2 className="text-2xl font-semibold text-white">Recent orders</h2>
+                    <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/90">Products</p>
+                    <h2 className="text-2xl font-semibold text-white">Recent products</h2>
                   </div>
                   <span className="rounded-full bg-slate-900 px-3 py-1 text-xs uppercase tracking-[0.25em] text-slate-400">
-                    4 orders
+                    {recentProducts.length} products
                   </span>
                 </div>
-                <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900">
-                  <table className="min-w-full border-separate border-spacing-0 text-left text-sm text-slate-300">
-                    <thead className="bg-slate-950">
-                      <tr>
-                        <th className="px-6 py-4 font-medium text-slate-400">Order</th>
-                        <th className="px-6 py-4 font-medium text-slate-400">Customer</th>
-                        <th className="px-6 py-4 font-medium text-slate-400">Status</th>
-                        <th className="px-6 py-4 font-medium text-slate-400">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tableRows.map((row) => (
-                        <tr key={row.id} className="border-t border-slate-800 last:border-b-0">
-                          <td className="px-6 py-4 font-medium text-white">{row.id}</td>
-                          <td className="px-6 py-4">{row.customer}</td>
-                          <td className="px-6 py-4">{row.status}</td>
-                          <td className="px-6 py-4 text-slate-200">{row.amount}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-4">
+                  {loading ? (
+                    // Loading skeleton for products
+                    Array.from({ length: 5 }).map((_, index) => (
+                      <div key={index} className="rounded-3xl border border-slate-800 bg-slate-900/60 p-4">
+                        <div className="h-4 w-32 animate-pulse rounded bg-slate-800 mb-2"></div>
+                        <div className="h-3 w-24 animate-pulse rounded bg-slate-800 mb-1"></div>
+                        <div className="h-3 w-20 animate-pulse rounded bg-slate-800"></div>
+                      </div>
+                    ))
+                  ) : recentProducts.length > 0 ? (
+                    recentProducts.map((product) => (
+                      <div key={product.id} className="rounded-3xl border border-slate-800 bg-slate-900/60 p-4">
+                        <p className="font-medium text-slate-100">{product.product_name}</p>
+                        <p className="mt-1 text-sm text-slate-400">
+                          {product.product_category} • {product.productCurrencySymbol}{product.product_price}
+                        </p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.25em] text-slate-500">
+                          Owner: {product.owner?.name || 'Unknown'}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-8 text-center">
+                      <p className="text-slate-400">No products found</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <RecentActivity />
+              {/* Recent Users */}
+              <div className="rounded-3xl border border-slate-800 bg-slate-950/90 p-6 shadow-card">
+                <div className="mb-6 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/90">Users</p>
+                    <h2 className="text-xl font-semibold text-white">Recent users</h2>
+                  </div>
+                  <span className="rounded-full bg-slate-900 px-3 py-1 text-xs uppercase tracking-[0.25em] text-slate-400">
+                    {recentUsers.length} users
+                  </span>
+                </div>
+                <div className="space-y-4">
+                  {loading ? (
+                    // Loading skeleton for users
+                    Array.from({ length: 5 }).map((_, index) => (
+                      <div key={index} className="rounded-3xl border border-slate-800 bg-slate-900/60 p-4">
+                        <div className="h-4 w-28 animate-pulse rounded bg-slate-800 mb-2"></div>
+                        <div className="h-3 w-32 animate-pulse rounded bg-slate-800"></div>
+                      </div>
+                    ))
+                  ) : recentUsers.length > 0 ? (
+                    recentUsers.map((user) => (
+                      <div key={user.id} className="rounded-3xl border border-slate-800 bg-slate-900/60 p-4">
+                        <p className="font-medium text-slate-100">{user.name}</p>
+                        <p className="mt-1 text-sm text-slate-400">{user.email}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-8 text-center">
+                      <p className="text-slate-400">No users found</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </section>
           </main>
         </div>
