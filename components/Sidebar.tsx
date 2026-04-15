@@ -15,6 +15,7 @@ import {
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
   { href: '/users', label: 'Users', icon: Users },
+  { href: '/user-activity', label: 'User Activity', icon: Activity },
   { href: '/products', label: 'Products', icon: Briefcase },
   { href: '/stolen-products', label: 'Stolen Products', icon: AlertTriangle },
 //   { href: '#', label: 'Analytics', icon: BarChart3 },

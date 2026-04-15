@@ -6,7 +6,7 @@ import { db } from '../../lib/firebase';
 import AuthGuard from '../../components/AuthGuard';
 import { Sidebar } from '../../components/Sidebar';
 import { useAuth } from '../../components/AuthProvider';
-import { ChevronLeft, ChevronRight, ImageIcon, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ImageIcon, X, MapPin } from 'lucide-react';
 
 interface ProductOwner {
   email: string;
@@ -41,6 +41,8 @@ interface Product {
   product_memories?: ProductMemory[];
   owner?: ProductOwner;
   location?: string;
+  latitude?: number;
+  longitude?: number;
   isProductStolen?: boolean;
   created_at?: string;
   updated_at?: string;
@@ -110,16 +112,32 @@ function ProductModal({
           <div className="space-y-4">
             <ProductImage src={product.product_image} alt={product.product_name} />
             <div className="rounded-3xl border border-slate-800 bg-slate-900 p-4">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Price</p>
+              {/* <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80">Price</p> */}
               <p className="mt-2 text-3xl font-semibold text-white">
                 {product.productCurrencySymbol}{product.product_price} {product.productCurrency}
               </p>
               <p className="mt-3 text-sm text-slate-400">Category: {product.product_category}</p>
               <p className="mt-1 text-sm text-slate-400">Weight: {product.product_weight}</p>
               <p className="mt-1 text-sm text-slate-400">Location: {product.location ?? 'N/A'}</p>
+
+              <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80 mt-4">Description</p>
+              <p className="mt-4 text-sm leading-7 text-slate-300">{product.product_description}</p>
+              <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80 mt-4">Owner details</p>
+              <p className="mt-3 font-medium text-white">{product.owner?.name ?? 'Unknown'}</p>
+              <p className="text-sm text-slate-400">{product.owner?.email ?? 'No email'}</p>
+              <p className="text-sm text-slate-400">{product.owner?.phone ?? 'No phone'}</p>
             </div>
 
-            {product.product_memories && product.product_memories.length > 0 ? (
+            {/* <div className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
+              <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80">Description</p>
+              <p className="mt-4 text-sm leading-7 text-slate-300">{product.product_description}</p>
+              <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80 mt-4">Owner details</p>
+              <p className="mt-3 font-medium text-white">{product.owner?.name ?? 'Unknown'}</p>
+              <p className="text-sm text-slate-400">{product.owner?.email ?? 'No email'}</p>
+              <p className="text-sm text-slate-400">{product.owner?.phone ?? 'No phone'}</p>
+            </div> */}
+
+            {/* {product.product_memories && product.product_memories.length > 0 ? (
               <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
                 <p className="text-xs uppercase tracking-[0.3em] text-cyan-300/80">Memories</p>
                 <div className="mt-4 space-y-3 text-sm text-slate-300">
@@ -132,25 +150,19 @@ function ProductModal({
                   ))}
                 </div>
               </div>
-            ) : null}
+            ) : null} */}
           </div>
 
           <div className="space-y-6">
             <div className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-              <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80">Description</p>
+              {/* <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80">Description</p>
               <p className="mt-4 text-sm leading-7 text-slate-300">{product.product_description}</p>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-1">
-              <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Owner details</p>
-                <p className="mt-3 font-medium text-white">{product.owner?.name ?? 'Unknown'}</p>
-                <p className="text-sm text-slate-400">{product.owner?.email ?? 'No email'}</p>
-                <p className="text-sm text-slate-400">{product.owner?.phone ?? 'No phone'}</p>
-              </div>
-
-              <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Metadata</p>
+              <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80 mt-4">Owner details</p>
+              <p className="mt-3 font-medium text-white">{product.owner?.name ?? 'Unknown'}</p>
+              <p className="text-sm text-slate-400">{product.owner?.email ?? 'No email'}</p>
+              <p className="text-sm text-slate-400">{product.owner?.phone ?? 'No phone'}</p>
+               */}
+                <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80 mt-4">Metadata</p>
                 <div className="mt-3 space-y-2 text-sm text-slate-300">
                   <div>
                     <span className="font-medium text-slate-200">Created:</span> {product.created_at ?? 'Unknown'}
@@ -171,7 +183,37 @@ function ProductModal({
                     <span className="font-medium text-slate-200">Memory items:</span> {product.product_memories?.length ?? 0}
                   </div>
                 </div>
-              </div>
+                 {(product.latitude !== undefined && product.longitude !== undefined) && (
+                <div className="mt-3 pt-3 border-t border-slate-700">
+                  <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80 mb-3">Location Map</p>
+                  <div className="rounded-xl overflow-hidden border border-slate-700">
+                    <iframe
+                      src={`https://maps.google.com/maps?q=${product.latitude},${product.longitude}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                      width="100%"
+                      height="200"
+                      style={{ border: 0 }}
+                      allowFullScreen
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      title={`Location of ${product.product_name}`}
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between">
+                    {/* <p className="text-xs text-slate-400">
+                      Lat: {product.latitude.toFixed(6)}, Lng: {product.longitude.toFixed(6)}
+                    </p> */}
+                    <a
+                      href={`https://www.google.com/maps?q=${product.latitude},${product.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-cyan-300 hover:text-cyan-200 transition"
+                    >
+                      <MapPin className="h-3 w-3" />
+                      View full map
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
 
             

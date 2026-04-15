@@ -5,8 +5,10 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import AuthGuard from '../../components/AuthGuard';
 import { Sidebar } from '../../components/Sidebar';
-import { ChevronLeft, ChevronRight, LogOut, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users } from 'lucide-react';
 import { useAuth } from '../../components/AuthProvider';
+
+type FirestoreTimestamp = { seconds: number; nanoseconds: number };
 
 interface User {
   id: string;
@@ -16,6 +18,29 @@ interface User {
   nationalId: string;
   phoneNumber: string;
   userId: string;
+  subscriptionPlan?: string;
+}
+
+interface Activity {
+  id: string;
+  amount?: number | string;
+  currency?: string;
+  description?: string;
+  timestamp?: string | FirestoreTimestamp;
+  title?: string;
+  type?: string;
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
+}
+
+function formatActivityTimestamp(value?: string | FirestoreTimestamp) {
+  if (!value) return 'Unknown';
+  if (typeof value === 'string') {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+  }
+  return new Date(value.seconds * 1000).toLocaleString();
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -50,6 +75,7 @@ function UserAvatar({ src, alt, className }: { src: string; alt: string; classNa
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -65,6 +91,31 @@ export default function UsersPage() {
           ...doc.data()
         } as User));
         setUsers(usersList);
+
+        const transactionsCollection = collection(db, 'transactions');
+        const transactionsSnapshot = await getDocs(transactionsCollection);
+        const transactions = transactionsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        } as Activity));
+
+        const usersById = new Map(usersList.map((user) => [user.userId, user]));
+        const activityList = transactions
+          .map((activity) => ({
+            ...activity,
+            userName: usersById.get(activity.userId ?? '')?.name ?? 'Unknown user',
+            userEmail: usersById.get(activity.userId ?? '')?.email ?? '',
+          }))
+          .sort((a, b) => {
+            const getTime = (value?: string | FirestoreTimestamp) => {
+              if (!value) return 0;
+              if (typeof value === 'string') return new Date(value).getTime();
+              return value.seconds * 1000;
+            };
+            return getTime(b.timestamp) - getTime(a.timestamp);
+          });
+
+        setActivities(activityList);
       } catch (err) {
         console.error('Error fetching users:', err);
         setError('Failed to load users');
@@ -158,7 +209,8 @@ export default function UsersPage() {
                           <th className="px-6 py-4 font-medium text-slate-400">Email</th>
                           <th className="px-6 py-4 font-medium text-slate-400">Phone</th>
                           <th className="px-6 py-4 font-medium text-slate-400">National ID</th>
-                          <th className="px-6 py-4 font-medium text-slate-400">User ID</th>
+                          <th className="px-6 py-4 font-medium text-slate-400">Subscription Plan</th>
+                          {/* <th className="px-6 py-4 font-medium text-slate-400">User ID</th> */}
                         </tr>
                       </thead>
                       <tbody>
@@ -179,7 +231,22 @@ export default function UsersPage() {
                             <td className="px-6 py-4">{user.email}</td>
                             <td className="px-6 py-4">{user.phoneNumber}</td>
                             <td className="px-6 py-4">{user.nationalId}</td>
-                            <td className="px-6 py-4 text-slate-200">{user.userId}</td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                user.subscriptionPlan === 'Premium' 
+                                  ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-700' 
+                                  : user.subscriptionPlan === 'Pro'
+                                  ? 'bg-blue-900/50 text-blue-300 border border-blue-700'
+                                  : user.subscriptionPlan === 'Basic'
+                                  ? 'bg-green-900/50 text-green-300 border border-green-700'
+                                  : 'bg-slate-700 text-slate-300 border border-slate-600'
+                              }`}>
+                                {/* {user.subscriptionPlan || 'N/A'} */}
+                                {(user.subscriptionPlan || 'N/A').charAt(0).toUpperCase() + 
+                                (user.subscriptionPlan || 'N/A').slice(1)}
+                              </span>
+                            </td>
+                            {/* <td className="px-6 py-4 text-slate-200">{user.userId}</td> */}
                           </tr>
                         ))}
                       </tbody>
