@@ -6,7 +6,9 @@ import { db } from '../../lib/firebase';
 import AuthGuard from '../../components/AuthGuard';
 import { Sidebar } from '../../components/Sidebar';
 import { useAuth } from '../../components/AuthProvider';
-import { Activity as ActivityIcon, Clock3, DollarSign, Users } from 'lucide-react';
+import { Activity as ActivityIcon, Clock3, DollarSign, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const ITEMS_PER_PAGE = 10;
 
 type FirestoreTimestamp = { seconds: number; nanoseconds: number };
 
@@ -43,6 +45,7 @@ export default function UserActivityPage() {
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const { logout } = useAuth();
 
   useEffect(() => {
@@ -90,6 +93,24 @@ export default function UserActivityPage() {
 
   const totalUsers = Array.from(new Set(activities.map((activity) => activity.userId))).length;
   const totalTransactions = activities.length;
+
+  // Calculate pagination
+  const totalPages = Math.ceil(activities.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const currentActivities = activities.slice(startIndex, endIndex);
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const goToPrevious = () => {
+    goToPage(currentPage - 1);
+  };
+
+  const goToNext = () => {
+    goToPage(currentPage + 1);
+  };
 
   return (
     <AuthGuard>
@@ -157,9 +178,9 @@ export default function UserActivityPage() {
                   <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/90">Activities</p>
                   {/* <h2 className="text-2xl font-semibold text-white">Recent transactions</h2> */}
                 </div>
-                {/* <span className="rounded-full bg-slate-900 px-3 py-1 text-xs uppercase tracking-[0.25em] text-slate-400">
+                <span className="rounded-full bg-slate-900 px-3 py-1 text-xs uppercase tracking-[0.25em] text-slate-400">
                   {activities.length} records
-                </span> */}
+                </span>
               </div>
 
               <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/95 shadow-inner">
@@ -194,7 +215,7 @@ export default function UserActivityPage() {
                         </td>
                       </tr>
                     ) : (
-                      activities.slice(0, 12).map((activity) => (
+                      currentActivities.map((activity) => (
                         <tr key={activity.id} className="border-t border-slate-800 hover:bg-slate-900/80">
                           <td className="px-6 py-4 text-slate-300">{activity.userName || 'Unknown'}</td>
                           <td className="px-6 py-4 font-medium text-white">{activity.title || 'Transaction'}<br/><span className="py-4 text-slate-400 text-xs max-w-xl truncate">{activity.description}</span></td>
@@ -216,6 +237,55 @@ export default function UserActivityPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="mt-6 flex items-center justify-between">
+                  <div className="text-sm text-slate-400">
+                    Showing {startIndex + 1} to {Math.min(endIndex, activities.length)} of {activities.length} transactions
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={goToPrevious}
+                      disabled={currentPage === 1}
+                      className="flex items-center gap-1 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 transition hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        const pageNumber = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                        if (pageNumber > totalPages) return null;
+
+                        return (
+                          <button
+                            key={pageNumber}
+                            onClick={() => goToPage(pageNumber)}
+                            className={`px-3 py-2 text-sm rounded-lg transition ${
+                              currentPage === pageNumber
+                                ? 'bg-cyan-500 text-slate-950'
+                                : 'border border-slate-700 text-slate-300 hover:bg-slate-800'
+                            }`}
+                          >
+                            {pageNumber}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      onClick={goToNext}
+                      disabled={currentPage === totalPages}
+                      className="flex items-center gap-1 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 transition hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </section>
           </main>
         </div>

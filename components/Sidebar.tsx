@@ -18,8 +18,8 @@ const navItems = [
   { href: '/user-activity', label: 'User Activity', icon: Activity },
   { href: '/products', label: 'Products', icon: Briefcase },
   { href: '/stolen-products', label: 'Stolen Products', icon: AlertTriangle },
+  { href: '/user-feedbacks', label: 'User Feedbacks', icon: MessageCircle },
 //   { href: '#', label: 'Analytics', icon: BarChart3 },
-//   { href: '#', label: 'Messages', icon: MessageCircle },
 //   { href: '#', label: 'Security', icon: ShieldCheck },
 //   { href: '#', label: 'Settings', icon: Settings },
 ];

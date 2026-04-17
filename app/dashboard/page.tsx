@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { Activity, ShoppingBag, Sparkles, Users, AlertTriangle, Package } from 'lucide-react';
+import { Activity, ShoppingBag, Sparkles, Users, AlertTriangle, Package, MessageCircle } from 'lucide-react';
 import { useAuth } from '../../components/AuthProvider';
 import AuthGuard from '../../components/AuthGuard';
 import { Sidebar } from '../../components/Sidebar';
@@ -29,6 +29,15 @@ interface User {
   created_at?: string;
 }
 
+interface Feedback {
+  id: string;
+  message: string;
+  timestamp?: string;
+  userEmail: string;
+  userId: string;
+  userName: string;
+}
+
 export default function DashboardPage() {
   const { logout } = useAuth();
   const [stats, setStats] = useState([
@@ -51,10 +60,10 @@ export default function DashboardPage() {
       icon: AlertTriangle,
     },
     {
-      title: 'Total value',
-      value: '$0',
-      description: 'Combined product value.',
-      icon: Sparkles,
+      title: 'Feedbacks',
+      value: '0',
+      description: 'User feedback messages.',
+      icon: MessageCircle,
     },
   ]);
   const [recentProducts, setRecentProducts] = useState<Product[]>([]);
@@ -80,11 +89,19 @@ export default function DashboardPage() {
           ...doc.data(),
         })) as User[];
 
+        // Fetch feedbacks data
+        const feedbacksCollection = collection(db, 'feedbacks');
+        const feedbacksSnapshot = await getDocs(feedbacksCollection);
+        const feedbacks = feedbacksSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Feedback[];
+
         // Calculate statistics
         const totalProducts = products.length;
         const totalUsers = users.length;
         const stolenProducts = products.filter(product => product.isProductStolen === true).length;
-        const totalValue = products.reduce((sum, product) => sum + (product.product_price || 0), 0);
+        const totalFeedbacks = feedbacks.length;
 
         // Get recent products (last 5, sorted by created_at if available)
         const sortedProducts = products.sort((a, b) => {
@@ -123,10 +140,10 @@ export default function DashboardPage() {
             icon: AlertTriangle,
           },
           {
-            title: 'Total value',
-            value: `$${totalValue.toLocaleString()}`,
-            description: 'Combined product value.',
-            icon: Sparkles,
+            title: 'Feedbacks',
+            value: totalFeedbacks.toString(),
+            description: 'User feedback messages.',
+            icon: MessageCircle,
           },
         ]);
 
