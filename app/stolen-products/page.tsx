@@ -97,7 +97,7 @@ function ProductModal({
       <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-6 py-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-red-400">Stolen Product</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-red-400">Lost Product</p>
             <p className="mt-2 text-2xl font-semibold text-white">{product.product_name}</p>
           </div>
           <button
@@ -247,7 +247,7 @@ export default function StolenProductsPage() {
           } as Product;
         });
 
-        // Filter only stolen products
+        // Filter only Lost Products
         const stolenProducts = items.filter(product => product.isProductStolen === true);
         setProducts(stolenProducts);
       } catch (err) {
@@ -281,9 +281,9 @@ export default function StolenProductsPage() {
                 <div>
                   <div className="flex items-center gap-3 mb-3">
                     <AlertTriangle className="h-6 w-6 text-red-400" />
-                    <p className="text-sm uppercase tracking-[0.3em] text-red-400">Stolen Products</p>
+                    <p className="text-sm uppercase tracking-[0.3em] text-red-400">Lost Products</p>
                   </div>
-                  <h1 className="mt-3 text-3xl font-semibold text-white">Stolen product alerts</h1>
+                  <h1 className="mt-3 text-3xl font-semibold text-white">Lost Product alerts</h1>
                   {/* <p className="mt-3 max-w-2xl leading-7 text-slate-400">
                     Monitor and track stolen products from the digilusData collection with detailed documentation and recovery information.
                   </p> */}
@@ -313,12 +313,12 @@ export default function StolenProductsPage() {
 
             {loading ? (
               <div className="rounded-3xl border border-slate-800 bg-slate-950/95 p-10 text-center text-slate-400 shadow-card">
-                Loading stolen products...
+                Loading Lost Products...
               </div>
             ) : products.length === 0 ? (
               <div className="rounded-3xl border border-slate-800 bg-slate-950/95 p-10 text-center text-slate-400 shadow-card">
                 <AlertTriangle className="mx-auto h-12 w-12 text-slate-600 mb-4" />
-                <p className="text-lg font-medium text-slate-300">No stolen products found</p>
+                <p className="text-lg font-medium text-slate-300">No Lost Products found</p>
                 <p className="mt-2 text-sm text-slate-500">All products are currently secure</p>
               </div>
             ) : (
@@ -328,7 +328,7 @@ export default function StolenProductsPage() {
                     <div className="relative">
                       <ProductImage src={product.product_image} alt={product.product_name} />
                       <div className="absolute top-4 left-4 rounded-full bg-red-600 px-3 py-1 text-xs font-medium text-white">
-                        STOLEN
+                        LOST
                       </div>
                     </div>
                     <div className="p-6">
@@ -360,7 +360,7 @@ export default function StolenProductsPage() {
                         onClick={() => setSelectedProduct(product)}
                         className="mt-6 w-full rounded-full bg-red-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-red-500"
                       >
-                        View stolen details
+                        View lost details
                       </button>
                     </div>
                   </article>
