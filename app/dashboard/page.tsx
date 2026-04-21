@@ -54,7 +54,7 @@ export default function DashboardPage() {
       icon: Users,
     },
     {
-      title: 'Stolen products',
+      title: 'Lost products',
       value: '0',
       description: 'Products marked as stolen.',
       icon: AlertTriangle,
@@ -134,9 +134,9 @@ export default function DashboardPage() {
             icon: Users,
           },
           {
-            title: 'Stolen products',
+            title: 'Lost products',
             value: stolenProducts.toString(),
-            description: 'Products marked as stolen.',
+            description: 'Products marked as lost.',
             icon: AlertTriangle,
           },
           {
