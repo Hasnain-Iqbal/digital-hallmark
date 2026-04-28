@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import AuthGuard from '../../components/AuthGuard';
 import { Sidebar } from '../../components/Sidebar';
@@ -92,6 +92,38 @@ function ProductModal({
   product: Product;
   onClose: () => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingRfid, setEditingRfid] = useState(product.product_rfid?.join(', ') || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSaveRfid = async () => {
+    if (!editingRfid.trim()) return;
+
+    setSaving(true);
+    try {
+      const productRef = doc(db, 'digilusData', product.id);
+      const rfidArray = editingRfid.split(',').map(tag => tag.trim()).filter(tag => tag);
+      
+      await updateDoc(productRef, {
+        product_rfid: rfidArray,
+        updated_at: new Date().toISOString(),
+      });
+
+      // Update local state
+      product.product_rfid = rfidArray;
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating RFID:', error);
+      alert('Failed to update RFID. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRfid(product.product_rfid?.join(', ') || '');
+    setIsEditing(false);
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
       <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 shadow-2xl">
@@ -170,8 +202,46 @@ function ProductModal({
                   <div>
                     <span className="font-medium text-slate-200">Updated:</span> {product.updated_at ?? 'Unknown'}
                   </div>
-                  <div>
-                    <span className="font-medium text-slate-200">RFID:</span><span className=""> {product.product_rfid?.join(', ') ?? 'N/A'}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-slate-200">RFID:</span>
+                    <div className="flex items-center gap-2">
+                      {isEditing ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={editingRfid}
+                            onChange={(e) => setEditingRfid(e.target.value)}
+                            className="rounded border border-slate-600 bg-slate-800 px-2 py-1 text-sm text-white focus:border-cyan-400 focus:outline-none"
+                            placeholder="Enter RFID tags (comma separated)"
+                            disabled={saving}
+                          />
+                          <button
+                            onClick={handleSaveRfid}
+                            disabled={saving}
+                            className="rounded bg-cyan-500 px-3 py-1 text-xs font-medium text-slate-950 transition hover:bg-cyan-400 disabled:opacity-50"
+                          >
+                            {saving ? 'Saving...' : 'Save'}
+                          </button>
+                          <button
+                            onClick={handleCancelEdit}
+                            disabled={saving}
+                            className="rounded border border-slate-600 px-3 py-1 text-xs text-slate-300 transition hover:bg-slate-700 disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-300">{product.product_rfid?.join(', ') || 'N/A'}</span>
+                          <button
+                            onClick={() => setIsEditing(true)}
+                            className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-300 transition hover:bg-slate-700"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <span className="font-medium text-slate-200">eWill docs:</span> {product.eWillDocuments?.length ?? 0}
