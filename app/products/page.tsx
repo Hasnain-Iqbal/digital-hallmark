@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import AuthGuard from '../../components/AuthGuard';
 import { Sidebar } from '../../components/Sidebar';
 import { useAuth } from '../../components/AuthProvider';
-import { ChevronLeft, ChevronRight, ImageIcon, X, MapPin } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ImageIcon, X, MapPin, Trash2 } from 'lucide-react';
 
 interface ProductOwner {
   email: string;
@@ -294,12 +294,95 @@ function ProductModal({
   );
 }
 
+function DeleteConfirmationModal({
+  product,
+  onConfirm,
+  onCancel,
+}: {
+  product: Product;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  const handleConfirm = async () => {
+    if (confirmText !== 'DELETE') return;
+
+    setDeleting(true);
+    try {
+      await onConfirm();
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      alert('Failed to delete product. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-950 p-6 shadow-2xl">
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10">
+              <Trash2 className="h-5 w-5 text-red-400" />
+            </div>
+            <div>
+              <p className="text-sm uppercase tracking-[0.3em] text-red-400/80">Delete product</p>
+              <h3 className="text-lg font-semibold text-white">Confirm deletion</h3>
+            </div>
+          </div>
+          <p className="text-sm text-slate-300 leading-6">
+            Are you sure you want to delete <span className="font-medium text-white">"{product.product_name}"</span>? 
+            This action cannot be undone and will permanently remove the product from the database.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-200 mb-2">
+              Type <span className="font-mono bg-slate-800 px-1 py-0.5 rounded text-xs">DELETE</span> to confirm
+            </label>
+            <input
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-slate-100 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/20 font-mono"
+              placeholder="DELETE"
+              disabled={deleting}
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              disabled={deleting}
+              className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-300 transition hover:bg-slate-800 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={confirmText !== 'DELETE' || deleting}
+              className="flex-1 rounded-xl bg-red-500 px-4 py-3 text-sm font-medium text-white transition hover:bg-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {deleting ? 'Deleting...' : 'Delete Product'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [filters, setFilters] = useState({
     search: '',
     category: '',
@@ -367,6 +450,15 @@ export default function ProductsPage() {
       maxPrice: '',
     });
     setCurrentPage(1);
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!productToDelete) return;
+
+    const productRef = doc(db, 'digilusData', productToDelete.id);
+    await deleteDoc(productRef);
+    setProducts(prevProducts => prevProducts.filter(product => product.id !== productToDelete.id));
+    setProductToDelete(null);
   };
 
   const updateFilter = (key: keyof typeof filters, value: string) => {
@@ -489,9 +581,9 @@ export default function ProductsPage() {
             ) : (
               <section className="grid gap-6 xl:grid-cols-3 lg:grid-cols-2">
                 {currentProducts.map((product) => (
-                  <article key={product.id} className="rounded-3xl border border-slate-800 bg-slate-900/95 shadow-card">
+                  <article key={product.id} className="flex h-full flex-col rounded-3xl border border-slate-800 bg-slate-900/95 shadow-card">
                     <ProductImage src={product.product_image} alt={product.product_name} />
-                    <div className="p-6">
+                    <div className="flex flex-col flex-1 p-6">
                       <div className="mb-4 flex items-center justify-between gap-4">
                         <div>
                           <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80">{product.product_category}</p>
@@ -516,12 +608,20 @@ export default function ProductsPage() {
                         </div>
                       </div>
 
-                      <button
-                        onClick={() => setSelectedProduct(product)}
-                        className="mt-6 w-full rounded-full bg-cyan-500 px-5 py-3 text-sm font-medium text-slate-950 transition hover:bg-cyan-400"
-                      >
-                        View details
-                      </button>
+                      <div className="mt-auto space-y-3">
+                        <button
+                          onClick={() => setSelectedProduct(product)}
+                          className="w-full rounded-full bg-cyan-500 px-5 py-3 text-sm font-medium text-slate-950 transition hover:bg-cyan-400"
+                        >
+                          View details
+                        </button>
+                        <button
+                          onClick={() => setProductToDelete(product)}
+                          className="w-full rounded-full border border-red-600 bg-red-600/10 px-5 py-3 text-sm font-medium text-red-400 transition hover:bg-red-600/20"
+                        >
+                          Delete product
+                        </button>
+                      </div>
                     </div>
                   </article>
                 ))}
@@ -580,6 +680,14 @@ export default function ProductsPage() {
 
         {selectedProduct ? (
           <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
+        ) : null}
+
+        {productToDelete ? (
+          <DeleteConfirmationModal
+            product={productToDelete}
+            onConfirm={handleDeleteProduct}
+            onCancel={() => setProductToDelete(null)}
+          />
         ) : null}
       </div>
     </AuthGuard>
