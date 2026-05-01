@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import AuthGuard from '../../components/AuthGuard';
 import { Sidebar } from '../../components/Sidebar';
 import { useAuth } from '../../components/AuthProvider';
 import { ChevronLeft, ChevronRight, ImageIcon, X, MapPin, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface ProductOwner {
   email: string;
@@ -88,9 +89,11 @@ function ProductImage({ src, alt }: { src: string; alt: string }) {
 function ProductModal({
   product,
   onClose,
+  onProductUpdated,
 }: {
   product: Product;
   onClose: () => void;
+  onProductUpdated?: () => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editingRfid, setEditingRfid] = useState(product.product_rfid?.join(', ') || '');
@@ -101,20 +104,107 @@ function ProductModal({
 
     setSaving(true);
     try {
-      const productRef = doc(db, 'digilusData', product.id);
       const rfidArray = editingRfid.split(',').map(tag => tag.trim()).filter(tag => tag);
-      
-      await updateDoc(productRef, {
-        product_rfid: rfidArray,
-        updated_at: new Date().toISOString(),
+      const newDocId = rfidArray[0]; // Use first RFID as document ID
+
+      // Check if new ID already exists
+      const existingDoc = await getDocs(
+        collection(db, 'digilusData'),
+      ).then(snapshot => {
+        return snapshot.docs.find(d => d.id === newDocId);
       });
 
-      // Update local state
-      product.product_rfid = rfidArray;
+      if (existingDoc && existingDoc.id !== product.id) {
+        toast.error('A product with this RFID already exists. Please use a unique RFID.');
+        setSaving(false);
+        return;
+      }
+
+      // If the ID hasn't changed, just update the RFID field
+      if (newDocId === product.id) {
+        const productRef = doc(db, 'digilusData', product.id);
+        await updateDoc(productRef, {
+          product_rfid: rfidArray,
+          updated_at: new Date().toISOString(),
+        });
+        product.product_rfid = rfidArray;
+        setIsEditing(false);
+        onProductUpdated?.();
+        return;
+      }
+
+      // Get the old document data
+      const oldDocRef = doc(db, 'digilusData', product.id);
+      const oldDocSnap = await getDocs(collection(db, 'digilusData')).then(snapshot => {
+        return snapshot.docs.find(d => d.id === product.id);
+      });
+
+      if (!oldDocSnap) {
+        throw new Error('Could not find product document');
+      }
+
+      const oldData = oldDocSnap.data() as Record<string, unknown>;
+
+      // Create new document with new ID and all old data
+      const newDocRef = doc(db, 'digilusData', newDocId);
+      await updateDoc(newDocRef, {
+        ...oldData,
+        id: newDocId[0],
+        product_rfid: rfidArray,
+        updated_at: new Date().toISOString(),
+        migrated_from: product.id,
+      }).catch(async (error) => {
+        // If document doesn't exist, try to set it
+        if (error.code === 'not-found') {
+          await setDoc(newDocRef, {
+            ...oldData,
+            id: rfidArray[0],
+            product_rfid: rfidArray,
+            updated_at: new Date().toISOString(),
+            migrated_from: product.id,
+          });
+        } else {
+          throw error;
+        }
+      });
+
+      // If there are eWillDocuments, update their productId reference
+      if (oldData.eWillDocuments && Array.isArray(oldData.eWillDocuments)) {
+        const updatedDocs = (oldData.eWillDocuments as Record<string, unknown>[]).map(eWillDoc => ({
+          ...eWillDoc,
+          productId: newDocId,
+        }));
+        
+        const newDocRef2 = doc(db, 'digilusData', newDocId);
+        await updateDoc(newDocRef2, {
+          eWillDocuments: updatedDocs,
+        });
+      }
+
+      // If there are insuranceDocuments, update their productId reference
+      if (oldData.insuranceDocuments && Array.isArray(oldData.insuranceDocuments)) {
+        const updatedDocs = (oldData.insuranceDocuments as Record<string, unknown>[]).map(insDoc => ({
+          ...insDoc,
+          productId: newDocId,
+        }));
+        
+        const newDocRef2 = doc(db, 'digilusData', newDocId);
+        await updateDoc(newDocRef2, {
+          insuranceDocuments: updatedDocs,
+        });
+      }
+
+      // Delete the old document after successful migration
+      await deleteDoc(oldDocRef);
+
+      // toast.success(`Product successfully migrated to new ID: ${newDocId}. Old document has been deleted.`);
+      toast.success(`Product RFID updated successfully`);
       setIsEditing(false);
+      onProductUpdated?.();
+      onClose();
     } catch (error) {
       console.error('Error updating RFID:', error);
-      alert('Failed to update RFID. Please try again.');
+      toast.error('Failed to update RFID. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -314,7 +404,7 @@ function DeleteConfirmationModal({
       await onConfirm();
     } catch (error) {
       console.error('Error deleting product:', error);
-      alert('Failed to delete product. Please try again.');
+      toast.error('Failed to delete product. Please try again.');
     } finally {
       setDeleting(false);
     }
@@ -391,33 +481,39 @@ export default function ProductsPage() {
   });
   const { logout } = useAuth();
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const productsCollection = collection(db, 'digilusData');
-        const snapshot = await getDocs(productsCollection);
-        const items = snapshot.docs.map(doc => {
-          const data = doc.data() as Record<string, unknown>;
-          return {
-            id: doc.id,
-            ...data,
-            created_at: formatTimestamp(data.created_at as TimestampValue | undefined),
-            updated_at: formatTimestamp(data.updated_at as TimestampValue | undefined),
-          } as Product;
-        });
-        // Filter only stolen products
-        const notStolenProducts = items.filter(product => product.isProductStolen === false);
-        setProducts(notStolenProducts);
-      } catch (err) {
-        console.error('Error loading products:', err);
-        setError('Unable to load products.');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchProducts = async () => {
+    try {
+      const productsCollection = collection(db, 'digilusData');
+      const snapshot = await getDocs(productsCollection);
+      const items = snapshot.docs.map(doc => {
+        const data = doc.data() as Record<string, unknown>;
+        return {
+          id: doc.id,
+          ...data,
+          created_at: formatTimestamp(data.created_at as TimestampValue | undefined),
+          updated_at: formatTimestamp(data.updated_at as TimestampValue | undefined),
+        } as Product;
+      });
+      // Filter only stolen products
+      const notStolenProducts = items.filter(product => product.isProductStolen === false);
+      setProducts(notStolenProducts);
+    } catch (err) {
+      console.error('Error loading products:', err);
+      setError('Unable to load products.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchProducts();
   }, []);
+
+  const handleProductUpdated = async () => {
+    // Refetch the product list
+    setLoading(true);
+    await fetchProducts();
+  };
 
   // Get unique categories for dropdown
   const uniqueCategories = Array.from(new Set(products.map(product => product.product_category))).sort();
@@ -608,19 +704,25 @@ export default function ProductsPage() {
                         </div>
                       </div>
 
-                      <div className="mt-auto space-y-3">
+                      <div className="mt-auto  gap-2 flex items-center justify-center">
                         <button
                           onClick={() => setSelectedProduct(product)}
-                          className="w-full rounded-full bg-cyan-500 px-5 py-3 text-sm font-medium text-slate-950 transition hover:bg-cyan-400"
+                          className="w-full rounded-full bg-cyan-500 px-5 py-4 text-sm font-medium text-slate-950 transition hover:bg-cyan-400"
                         >
                           View details
                         </button>
-                        <button
+                        {/* <button
                           onClick={() => setProductToDelete(product)}
-                          className="w-full rounded-full border border-red-600 bg-red-600/10 px-5 py-3 text-sm font-medium text-red-400 transition hover:bg-red-600/20"
+                          className=" rounded-full border border-red-600 bg-red-600/10 px-5 py-3 text-sm font-medium text-red-400 transition hover:bg-red-600/20"
                         >
                           Delete product
-                        </button>
+                        </button> */}
+                        <div 
+                          className="flex h-12 w-14 m-0 border border-red-600 items-center justify-center rounded-full bg-red-500/10 hover:bg-red-400/40 cursor-pointer transition"
+                          onClick={() => setProductToDelete(product)}
+                          >
+                          <Trash2 className="h-5 w-5 text-red-400 mt-0" />
+                        </div>
                       </div>
                     </div>
                   </article>
@@ -679,7 +781,11 @@ export default function ProductsPage() {
         </div>
 
         {selectedProduct ? (
-          <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} />
+          <ProductModal 
+            product={selectedProduct} 
+            onClose={() => setSelectedProduct(null)}
+            onProductUpdated={handleProductUpdated}
+          />
         ) : null}
 
         {productToDelete ? (
